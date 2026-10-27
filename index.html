@@ -155,6 +155,31 @@
     .modal-buttons { display: flex; gap: 9px; margin-top: 21px; }
     .modal-buttons button { flex: 1; min-height: 43px; border-radius: 11px; border: 1px solid var(--line); background: #3b3151; color: #fff; font-weight: 750; }
     .modal-buttons .confirm { background: var(--purple-deep); border-color: transparent; }
+    .lyrics-overlay {
+      position: fixed; z-index: 20; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      background: radial-gradient(circle at 100% 0%, rgba(117, 76, 205, .28), transparent 340px), var(--bg);
+    }
+    .lyrics-overlay[hidden] { display: none; }
+    .lyrics-inner {
+      max-width: 780px; margin: 0 auto;
+      padding: calc(14px + env(safe-area-inset-top, 0px)) 18px calc(40px + env(safe-area-inset-bottom, 0px));
+    }
+    .lyrics-bar {
+      position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 8px 0 12px; margin-bottom: 6px;
+      background: linear-gradient(var(--bg) 70%, rgba(17, 13, 32, 0));
+    }
+    .lyrics-bar .back-btn { margin-bottom: 0; }
+    .font-ctl { display: flex; gap: 7px; }
+    .font-ctl button {
+      min-width: 42px; min-height: 38px; border-radius: 10px; border: 1px solid var(--line);
+      background: var(--surface); color: var(--text); font-weight: 750;
+    }
+    .lyrics-artist { color: var(--purple); font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+    .lyrics-title { margin: 4px 0 18px; font-size: 25px; line-height: 1.22; letter-spacing: -.4px; overflow-wrap: anywhere; }
+    .lyrics-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; font-size: 20px; }
+    .lyrics-footer { margin-top: 30px; display: flex; gap: 9px; }
+    .lyrics-footer .song-btn { flex: 1; }
     @media (min-width: 560px) {
       #app { padding: calc(26px + env(safe-area-inset-top, 0px)) 25px 45px; }
       .mini-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -184,12 +209,31 @@
     </div>
   </div>
 
+  <div class="lyrics-overlay" id="lyricsView" hidden>
+    <div class="lyrics-inner">
+      <div class="lyrics-bar">
+        <button type="button" class="back-btn" id="lyricsBack">← Назад</button>
+        <div class="font-ctl">
+          <button type="button" id="lyricsSmaller" aria-label="Уменьшить шрифт">A−</button>
+          <button type="button" id="lyricsBigger" aria-label="Увеличить шрифт">A+</button>
+        </div>
+      </div>
+      <div class="lyrics-artist" id="lyricsArtist"></div>
+      <h2 class="lyrics-title" id="lyricsTitle"></h2>
+      <div class="lyrics-body" id="lyricsBody"></div>
+      <div class="lyrics-footer">
+        <button type="button" class="song-btn" id="lyricsVideo">YouTube</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     'use strict';
 
     const PAGE_SIZE = 12;
     const root = document.getElementById('app');
     const modal = document.getElementById('shareModal');
+    const lyricsView = document.getElementById('lyricsView');
     const tg = (window.Telegram && window.Telegram.WebApp) || null;
 
     const state = {
@@ -387,7 +431,8 @@
 
     function makeSongCard(song) {
       const status = String(song.status || '').trim();
-      const hasLyrics = isHttpUrl(song.lyricsUrl);
+      const hasOwnLyrics = !!String(song.lyrics || '').trim();
+      const hasLyrics = hasOwnLyrics || isHttpUrl(song.lyricsUrl);
       const tags = status ? '<span class="tag">' + escapeHtml(status) + '</span>' : '';
       return '<article class="song-card' + (song.minus ? ' has-minus' : '') + '">' +
         (song.minus ? '<span class="minus-badge">МИНУС</span>' : '') +
@@ -398,7 +443,7 @@
         '<div class="song-actions' + (hasLyrics ? ' has-lyrics' : '') + '">' +
         '<button type="button" class="song-btn primary" data-action="share" data-song-index="' + song._index + '">Отправить в чат ↗</button>' +
         '<button type="button" class="song-btn video" data-action="video" data-song-index="' + song._index + '">YouTube</button>' +
-        (hasLyrics ? '<button type="button" class="song-btn" data-action="lyrics" data-song-index="' + song._index + '">Текст песни ↗</button>' : '') +
+        (hasLyrics ? '<button type="button" class="song-btn" data-action="lyrics" data-song-index="' + song._index + '">Текст песни' + (hasOwnLyrics ? '' : ' ↗') + '</button>' : '') +
         '</div></article>';
     }
 
@@ -470,13 +515,14 @@
     }
 
     function goBack() {
+      if (!lyricsView.hidden) { closeLyrics(); return; }
       if (!modal.hidden) { closeShareModal(); return; }
       if (state.view === 'songs') navigate(state.origin || 'home');
       else if (state.view !== 'home') navigate('home');
     }
 
     // ВСТАВЬТЕ сюда ссылку на опубликованное веб-приложение Apps Script (заканчивается на /exec)
-    const API_URL = 'https://script.google.com/macros/s/AKfycbz_kPBj-aLDCsujl6jXNf9JljlqkSZ94Dq54womKJwN8UNvXCW5s5LUhTdw-Gm65Cl-gg/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyRCj0QSuZJvS60854rG2dWg_cHDnh6YfoWwu1Kwd39HKf9vCJEt9gnRxxEOB2dxcXNHA/exec';
     const CACHE_KEY = 'karaoke-catalog-v1';
 
     function applyCatalog(data) {
@@ -557,6 +603,41 @@
       window.open(url, '_blank', 'noopener,noreferrer');
     }
 
+    const LYRICS_SIZE_KEY = 'karaoke-lyrics-size';
+    let lyricsSize = 20;
+    try {
+      const saved = Number(localStorage.getItem(LYRICS_SIZE_KEY));
+      if (saved >= 14 && saved <= 36) lyricsSize = saved;
+    } catch (error) { /* не страшно */ }
+    let currentLyricsSong = null;
+
+    function applyLyricsSize() {
+      document.getElementById('lyricsBody').style.fontSize = lyricsSize + 'px';
+      try { localStorage.setItem(LYRICS_SIZE_KEY, String(lyricsSize)); } catch (error) { /* не страшно */ }
+    }
+
+    function changeLyricsSize(delta) {
+      lyricsSize = Math.min(36, Math.max(14, lyricsSize + delta));
+      applyLyricsSize();
+    }
+
+    function openLyrics(song) {
+      currentLyricsSong = song;
+      document.getElementById('lyricsArtist').textContent = song.displayArtists || (song.artists || []).join(', ');
+      document.getElementById('lyricsTitle').textContent = song.title;
+      document.getElementById('lyricsBody').textContent = song.lyrics;
+      applyLyricsSize();
+      lyricsView.hidden = false;
+      lyricsView.scrollTop = 0;
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLyrics() {
+      lyricsView.hidden = true;
+      currentLyricsSong = null;
+      document.body.style.overflow = '';
+    }
+
     function openShareModal(song) {
       if (!song || !isHttpUrl(song.url)) return;
       state.pendingShareUrl = song.url;
@@ -623,7 +704,10 @@
         const song = state.songs[Number(button.dataset.songIndex)];
         if (!song) return;
         if (action === 'share') openShareModal(song);
-        else openExternal(action === 'lyrics' ? song.lyricsUrl : song.url);
+        else if (action === 'lyrics') {
+          if (String(song.lyrics || '').trim()) openLyrics(song);
+          else openExternal(song.lyricsUrl);
+        } else openExternal(song.url);
       }
     });
 
@@ -646,13 +730,20 @@
       }
     });
 
+    document.getElementById('lyricsBack').addEventListener('click', closeLyrics);
+    document.getElementById('lyricsSmaller').addEventListener('click', function () { changeLyricsSize(-2); });
+    document.getElementById('lyricsBigger').addEventListener('click', function () { changeLyricsSize(2); });
+    document.getElementById('lyricsVideo').addEventListener('click', function () {
+      if (currentLyricsSong) openExternal(currentLyricsSong.url);
+    });
     document.getElementById('cancelShare').addEventListener('click', closeShareModal);
     document.getElementById('confirmShare').addEventListener('click', confirmShare);
     modal.addEventListener('click', function (event) {
       if (event.target === modal) closeShareModal();
     });
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape' && !modal.hidden) closeShareModal();
+      if (event.key === 'Escape' && !lyricsView.hidden) closeLyrics();
+      else if (event.key === 'Escape' && !modal.hidden) closeShareModal();
     });
 
     loadCache();
