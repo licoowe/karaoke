@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Караоке">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#110d20">
+  <title>Песни для караоке</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #110d20;
+      --surface: #211a35;
+      --surface-2: #2b2243;
+      --line: rgba(225, 211, 255, .11);
+      --text: #f9f6ff;
+      --muted: #b4a8ce;
+      --purple: #aa8bff;
+      --purple-deep: #7452d9;
+      --shadow: 0 12px 34px rgba(0, 0, 0, .16);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at 100% 0%, rgba(117, 76, 205, .28), transparent 340px),
+                  radial-gradient(circle at 0% 65%, rgba(87, 59, 151, .15), transparent 340px),
+                  var(--bg);
+      -webkit-tap-highlight-color: transparent;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: default; opacity: .43; }
+    button:focus-visible, input:focus-visible {
+      outline: 2px solid var(--purple);
+      outline-offset: 3px;
+    }
+    #app {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 22px 16px calc(36px + env(safe-area-inset-bottom, 0px));
+    }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+    .brand-kicker {
+      font-size: 10px; letter-spacing: .19em; text-transform: uppercase; color: var(--purple);
+      font-weight: 800; margin-bottom: 3px;
+    }
+    .brand-title { margin: 0; font-size: 23px; letter-spacing: -.5px; font-weight: 760; }
+    .refresh-btn {
+      flex: 0 0 auto; border: 1px solid var(--line); border-radius: 13px;
+      color: var(--text); background: var(--surface); padding: 10px 13px;
+      display: inline-flex; align-items: center; gap: 7px; font-size: 13px;
+    }
+    .refresh-btn.is-loading .refresh-symbol { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hero {
+      background: linear-gradient(125deg, #6746b6 0%, #39295b 100%);
+      box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,.13);
+      border-radius: 23px; padding: 24px 22px; margin-bottom: 20px;
+    }
+    .hero-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #ded0ff; }
+    .hero h2 { margin: 9px 0 7px; font-size: clamp(25px, 6vw, 34px); line-height: 1.14; letter-spacing: -.7px; }
+    .hero p { color: #e2d9f6; font-size: 13px; margin: 0; }
+    .section-title { font-size: 17px; font-weight: 750; margin: 25px 0 12px; }
+    .menu-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .menu-card {
+      text-align: left; min-height: 125px; width: 100%; border: 1px solid var(--line);
+      background: var(--surface); border-radius: 18px; color: var(--text);
+      padding: 17px 15px; transition: background .16s, transform .16s;
+    }
+    .menu-card:active { transform: scale(.985); background: var(--surface-2); }
+    .menu-icon { display: block; font-size: 23px; color: var(--purple); line-height: 1; margin-bottom: 15px; }
+    .menu-name { display: block; font-size: 15px; font-weight: 750; }
+    .menu-detail { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .search-wrap { position: relative; display: flex; align-items: center; gap: 9px; }
+    .search-input {
+      flex: 1; min-width: 0; width: 100%; background: var(--surface);
+      border: 1px solid var(--line); border-radius: 14px;
+      color: var(--text); padding: 13px 15px; outline: none;
+    }
+    .search-input::placeholder { color: #9f91b8; }
+    .search-go {
+      border: 0; border-radius: 13px; padding: 13px 16px;
+      color: #fff; background: var(--purple-deep); font-weight: 700;
+    }
+    .page-head { margin-bottom: 17px; }
+    .back-btn {
+      padding: 5px 0; border: 0; background: none; color: var(--purple);
+      display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700;
+      margin-bottom: 9px;
+    }
+    .page-head h2 { margin: 0; font-size: 26px; letter-spacing: -.5px; }
+    .page-caption { margin-top: 4px; color: var(--muted); font-size: 13px; }
+    .mini-list { display: grid; grid-template-columns: 1fr; gap: 9px; margin-top: 14px; }
+    .mini-item {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; text-align: left; padding: 15px 16px; border-radius: 14px;
+      border: 1px solid var(--line); background: var(--surface); color: var(--text);
+    }
+    .mini-item-name { overflow-wrap: anywhere; font-weight: 660; }
+    .mini-item-side { flex: 0 0 auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .mini-item-arrow { margin-left: 4px; color: var(--purple); }
+    .results-count { font-size: 12px; color: var(--muted); margin: 17px 2px 11px; }
+    .songs-list { display: grid; grid-template-columns: 1fr; gap: 11px; }
+    .song-card {
+      position: relative; padding: 17px 16px 15px; border-radius: 19px;
+      border: 1px solid var(--line); background: var(--surface); box-shadow: 0 5px 18px rgba(0,0,0,.07);
+    }
+    .song-card.has-minus .song-info { padding-right: 68px; }
+    .song-artist { margin-bottom: 5px; color: var(--purple); font-size: 12px; font-weight: 650; overflow-wrap: anywhere; }
+    .song-title { margin: 0; font-size: 17px; line-height: 1.31; font-weight: 750; overflow-wrap: anywhere; }
+    .minus-badge {
+      position: absolute; top: 15px; right: 15px; border-radius: 9px;
+      padding: 5px 8px; letter-spacing: .09em; font-size: 9px; font-weight: 800;
+      color: rgba(234, 224, 255, .7); background: rgba(202, 178, 255, .09);
+      border: 1px solid rgba(222, 202, 255, .14); pointer-events: none; user-select: none;
+    }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+    .tag { font-size: 10px; line-height: 1.2; color: var(--muted); background: var(--surface-2); padding: 5px 8px; border-radius: 7px; }
+    .tag.irina { color: #e3d8ff; background: rgba(145, 104, 255, .16); }
+    .song-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 16px; }
+    .song-btn {
+      border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2);
+      color: var(--text); min-height: 40px; padding: 8px 10px; font-weight: 650; font-size: 12px;
+    }
+    .song-btn.primary { background: var(--purple-deep); border-color: transparent; color: white; grid-column: 1 / -1; }
+    .song-actions:not(.has-lyrics) .song-btn.video { grid-column: 1 / -1; }
+    .pagination { margin-top: 20px; display: flex; justify-content: center; gap: 12px; align-items: center; }
+    .pagination button { color: var(--text); border: 1px solid var(--line); background: var(--surface); border-radius: 12px; min-width: 48px; min-height: 43px; font-size: 20px; }
+    .pagination .page-text { font-size: 13px; color: var(--muted); min-width: 115px; text-align: center; }
+    .empty-state { padding: 38px 18px; border: 1px dashed var(--line); border-radius: 17px; color: var(--muted); text-align: center; font-size: 13px; }
+    .empty-state strong { display: block; color: var(--text); font-size: 16px; margin-bottom: 7px; }
+    .loading-block { padding: 35px 15px; text-align: center; color: var(--muted); }
+    .spinner { width: 27px; height: 27px; margin: 0 auto 15px; border: 3px solid var(--surface-2); border-top-color: var(--purple); border-radius: 50%; animation: spin .8s linear infinite; }
+    .error-note { background: rgba(225, 85, 110, .11); border: 1px solid rgba(225,85,110,.2); border-radius: 14px; padding: 15px; color: #ffc5ce; font-size: 13px; }
+    .footnote { margin-top: 25px; text-align: center; color: var(--muted); opacity: .7; font-size: 11px; }
+    .modal-overlay {
+      position: fixed; z-index: 15; inset: 0; padding: 18px;
+      background: rgba(7, 5, 15, .72); display: flex; align-items: center; justify-content: center;
+    }
+    .modal-overlay[hidden] { display: none; }
+    .modal {
+      width: min(100%, 380px); background: #2a213f; border: 1px solid rgba(255,255,255,.1);
+      border-radius: 22px; padding: 22px; box-shadow: 0 30px 70px rgba(0,0,0,.35);
+    }
+    .modal h3 { margin: 0 0 10px; font-size: 19px; }
+    .modal-song { color: #e7daff; font-weight: 750; overflow-wrap: anywhere; margin-bottom: 9px; }
+    .modal-desc { color: #c0b4d9; font-size: 13px; line-height: 1.5; }
+    .modal-buttons { display: flex; gap: 9px; margin-top: 21px; }
+    .modal-buttons button { flex: 1; min-height: 43px; border-radius: 11px; border: 1px solid var(--line); background: #3b3151; color: #fff; font-weight: 750; }
+    .modal-buttons .confirm { background: var(--purple-deep); border-color: transparent; }
+    @media (min-width: 560px) {
+      #app { padding: 26px 25px 45px; }
+      .mini-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .songs-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .song-card { display: flex; flex-direction: column; }
+      .song-actions { margin-top: auto; padding-top: 16px; }
+    }
+    @media (max-width: 350px) {
+      .brand-title { font-size: 20px; }
+      .hero { padding: 20px 17px; }
+      .menu-card { padding: 14px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" aria-live="polite"></div>
+
+  <div class="modal-overlay" id="shareModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+      <h3 id="shareTitle">Отправить песню?</h3>
+      <div class="modal-song" id="shareSong"></div>
+      <div class="modal-desc">Откроется выбор чата в Telegram. После выбора останется подтвердить отправку ссылки на YouTube.</div>
+      <div class="modal-buttons">
+        <button type="button" id="cancelShare">Отмена</button>
+        <button type="button" class="confirm" id="confirmShare">Отправить</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const PAGE_SIZE = 12;
+    const root = document.getElementById('app');
+    const modal = document.getElementById('shareModal');
+    const tg = (window.Telegram && window.Telegram.WebApp) || null;
+
+    const state = {
+      songs: [],
+      updatedAt: null,
+      loading: true,
+      refreshing: false,
+      error: '',
+      view: 'home',
+      origin: 'home',
+      filter: { type: 'all', value: '' },
+      search: '',
+      menuSearch: '',
+      page: 1,
+      pendingShareUrl: '',
+      pendingShareText: ''
+    };
+
+    if (tg) {
+      try {
+        tg.ready();
+        tg.expand();
+        if (tg.BackButton && typeof tg.BackButton.onClick === 'function') {
+          tg.BackButton.onClick(goBack);
+        }
+      } catch (error) {
+        console.warn('Telegram WebApp:', error);
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function normalize(value) {
+      return String(value == null ? '' : value)
+        .toLocaleLowerCase('ru')
+        .replace(/ё/g, 'е')
+        .trim();
+    }
+
+    function numberLabel(number, one, two, many) {
+      const n = Math.abs(number) % 100;
+      const digit = n % 10;
+      if (n > 10 && n < 20) return number + ' ' + many;
+      if (digit === 1) return number + ' ' + one;
+      if (digit >= 2 && digit <= 4) return number + ' ' + two;
+      return number + ' ' + many;
+    }
+
+    function isHttpUrl(value) {
+      return /^https?:\/\/\S+$/i.test(String(value || '').trim());
+    }
+
+    function getArtists() {
+      const map = new Map();
+      state.songs.forEach(function (song) {
+        (Array.isArray(song.artists) ? song.artists : []).forEach(function (artist) {
+          const name = String(artist || '').trim();
+          if (!name) return;
+          const key = normalize(name);
+          if (!map.has(key)) map.set(key, { name: name, count: 0 });
+          map.get(key).count++;
+        });
+      });
+      return Array.from(map.values()).sort(function (a, b) {
+        return a.name.localeCompare(b.name, ['ru', 'en'], { sensitivity: 'base' });
+      });
+    }
+
+    function getStatuses() {
+      const map = new Map();
+      state.songs.forEach(function (song) {
+        const name = String(song.status || '').trim() || 'Без статуса';
+        const key = normalize(name);
+        if (!map.has(key)) map.set(key, { name: name, count: 0 });
+        map.get(key).count++;
+      });
+      return Array.from(map.values()).sort(function (a, b) {
+        return a.name.localeCompare(b.name, ['ru', 'en'], { sensitivity: 'base' });
+      });
+    }
+
+    function getBaseSongs() {
+      const filter = state.filter;
+      return state.songs.filter(function (song) {
+        if (filter.type === 'irina') return !!song.withIrina;
+        if (filter.type === 'artist') {
+          return (Array.isArray(song.artists) ? song.artists : []).some(function (artist) {
+            return normalize(artist) === normalize(filter.value);
+          });
+        }
+        if (filter.type === 'status') {
+          return normalize(String(song.status || '').trim() || 'Без статуса') === normalize(filter.value);
+        }
+        return true;
+      });
+    }
+
+    function getFilteredSongs() {
+      const query = normalize(state.search);
+      return getBaseSongs().filter(function (song) {
+        if (!query) return true;
+        return normalize([song.title, song.displayArtists, song.status, (song.artists || []).join(' ')].join(' ')).includes(query);
+      });
+    }
+
+    function makeHeader() {
+      return '<header class="topbar">' +
+        '<div><div class="brand-kicker">LICOOWE · КАРАОКЕ</div>' +
+        '<h1 class="brand-title">Песни для караоке</h1></div>' +
+        '<button type="button" class="refresh-btn' + (state.refreshing ? ' is-loading' : '') + '" data-action="refresh"' + (state.refreshing ? ' disabled' : '') + ' aria-label="Обновить список песен">' +
+        '<span class="refresh-symbol" aria-hidden="true">↻</span> Обновить</button>' +
+        '</header>';
+    }
+
+    function makeBack() {
+      return '<button type="button" class="back-btn" data-action="back">← Назад</button>';
+    }
+
+    function makeHome() {
+      const countIrina = state.songs.filter(function (song) { return song.withIrina; }).length;
+      return '<section class="hero">' +
+        '<div class="hero-eyebrow">ТВОЙ МУЗЫКАЛЬНЫЙ КАТАЛОГ</div>' +
+        '<h2>Что будем петь?</h2>' +
+        '<p>' + numberLabel(state.songs.length, 'песня', 'песни', 'песен') + ' в каталоге. Выбирай, ищи и делись в Telegram.</p>' +
+        '</section>' +
+        '<div class="search-wrap">' +
+        '<input class="search-input" id="homeSearch" placeholder="Найти песню или исполнителя" autocomplete="off" enterkeyhint="search" aria-label="Поиск песни">' +
+        '<button type="button" class="search-go" data-action="home-search">Найти</button>' +
+        '</div>' +
+        '<h2 class="section-title">Каталог</h2>' +
+        '<div class="menu-grid">' +
+        menuCard('all', '♫', 'Все песни', numberLabel(state.songs.length, 'песня', 'песни', 'песен')) +
+        menuCard('artists', '♬', 'По исполнителям', numberLabel(getArtists().length, 'исполнитель', 'исполнителя', 'исполнителей')) +
+        menuCard('statuses', '≡', 'По статусу', numberLabel(getStatuses().length, 'категория', 'категории', 'категорий')) +
+        menuCard('irina', '♪', 'Пою с Ириной', numberLabel(countIrina, 'песня', 'песни', 'песен')) +
+        '</div>' +
+        '<div class="footnote">Чтобы увидеть изменения в таблице, нажми «Обновить».</div>';
+    }
+
+    function menuCard(action, symbol, name, detail) {
+      return '<button type="button" class="menu-card" data-action="' + action + '">' +
+        '<span class="menu-icon" aria-hidden="true">' + symbol + '</span>' +
+        '<span class="menu-name">' + name + '</span>' +
+        '<span class="menu-detail">' + detail + '</span></button>';
+    }
+
+    function makeCategories(type) {
+      const artists = type === 'artists';
+      const entries = artists ? getArtists() : getStatuses();
+      return '<div class="page-head">' + makeBack() +
+        '<h2>' + (artists ? 'Исполнители' : 'Статусы') + '</h2>' +
+        '<div class="page-caption">Выбери ' + (artists ? 'исполнителя' : 'категорию') + ', чтобы увидеть песни</div></div>' +
+        '<input id="menuSearch" class="search-input" autocomplete="off" placeholder="' + (artists ? 'Поиск исполнителя' : 'Поиск статуса') + '" value="' + escapeHtml(state.menuSearch) + '">' +
+        '<div class="mini-list" id="categoryResults"></div>';
+    }
+
+    function updateCategoryResults() {
+      const results = document.getElementById('categoryResults');
+      if (!results) return;
+      const artists = state.view === 'artists';
+      const entries = (artists ? getArtists() : getStatuses()).filter(function (entry) {
+        return normalize(entry.name).includes(normalize(state.menuSearch));
+      });
+      results.innerHTML = entries.length ? entries.map(function (entry, index) {
+        return '<button type="button" class="mini-item" data-action="category" data-category-index="' + index + '">' +
+          '<span class="mini-item-name">' + escapeHtml(entry.name) + '</span>' +
+          '<span class="mini-item-side">' + entry.count + ' <span class="mini-item-arrow">›</span></span></button>';
+      }).join('') : emptyState('Ничего не найдено', 'Попробуй другой запрос.');
+    }
+
+    function makeSongPage() {
+      let title = 'Все песни';
+      if (state.filter.type === 'irina') title = 'Пою с Ириной';
+      if (state.filter.type === 'artist') title = state.filter.value;
+      if (state.filter.type === 'status') title = state.filter.value;
+      return '<div class="page-head">' + makeBack() +
+        '<h2>' + escapeHtml(title) + '</h2>' +
+        '<div class="page-caption">Найди песню и отправь ссылку в Telegram</div></div>' +
+        '<input class="search-input" id="songSearch" autocomplete="off" enterkeyhint="search" placeholder="Поиск по названию или исполнителю" value="' + escapeHtml(state.search) + '">' +
+        '<div class="results-count" id="songCount"></div>' +
+        '<div class="songs-list" id="songResults"></div>' +
+        '<nav class="pagination" id="pages" aria-label="Страницы каталога"></nav>';
+    }
+
+    function emptyState(title, description) {
+      return '<div class="empty-state"><strong>' + escapeHtml(title) + '</strong>' + escapeHtml(description) + '</div>';
+    }
+
+    function makeSongCard(song) {
+      const status = String(song.status || '').trim();
+      const hasLyrics = isHttpUrl(song.lyricsUrl);
+      const tags = (status ? '<span class="tag">' + escapeHtml(status) + '</span>' : '') +
+        (song.withIrina ? '<span class="tag irina">С Ириной</span>' : '');
+      return '<article class="song-card' + (song.minus ? ' has-minus' : '') + '">' +
+        (song.minus ? '<span class="minus-badge">МИНУС</span>' : '') +
+        '<div class="song-info">' +
+        '<div class="song-artist">' + escapeHtml(song.displayArtists || (song.artists || []).join(', ')) + '</div>' +
+        '<h3 class="song-title">' + escapeHtml(song.title) + '</h3></div>' +
+        (tags ? '<div class="tags">' + tags + '</div>' : '') +
+        '<div class="song-actions' + (hasLyrics ? ' has-lyrics' : '') + '">' +
+        '<button type="button" class="song-btn primary" data-action="share" data-song-index="' + song._index + '">Отправить в чат ↗</button>' +
+        '<button type="button" class="song-btn video" data-action="video" data-song-index="' + song._index + '">YouTube</button>' +
+        (hasLyrics ? '<button type="button" class="song-btn" data-action="lyrics" data-song-index="' + song._index + '">Текст песни ↗</button>' : '') +
+        '</div></article>';
+    }
+
+    function updateSongResults() {
+      const list = document.getElementById('songResults');
+      const count = document.getElementById('songCount');
+      const pager = document.getElementById('pages');
+      if (!list || !count || !pager) return;
+
+      const filtered = getFilteredSongs();
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      state.page = Math.min(Math.max(1, state.page), totalPages);
+      const start = (state.page - 1) * PAGE_SIZE;
+      const pageSongs = filtered.slice(start, start + PAGE_SIZE);
+      count.textContent = numberLabel(filtered.length, 'песня', 'песни', 'песен') + ' найдено';
+      list.innerHTML = pageSongs.length
+        ? pageSongs.map(makeSongCard).join('')
+        : emptyState('Песен не найдено', 'Измени поисковый запрос или вернись к категориям.');
+      pager.innerHTML = filtered.length > PAGE_SIZE
+        ? '<button type="button" aria-label="Предыдущая страница" data-action="prev"' + (state.page === 1 ? ' disabled' : '') + '>←</button>' +
+          '<span class="page-text">' + state.page + ' из ' + totalPages + '</span>' +
+          '<button type="button" aria-label="Следующая страница" data-action="next"' + (state.page === totalPages ? ' disabled' : '') + '>→</button>'
+        : '';
+    }
+
+    function render() {
+      if (tg && tg.BackButton) {
+        try {
+          if (state.view === 'home') tg.BackButton.hide();
+          else tg.BackButton.show();
+        } catch (e) { /* В браузере вне Telegram кнопки может не быть. */ }
+      }
+      let body = '';
+      if (state.loading) {
+        body = '<div class="loading-block"><div class="spinner"></div>Загружаем песни...</div>';
+      } else if (state.error && !state.songs.length) {
+        body = '<div class="error-note">Не удалось загрузить каталог: ' + escapeHtml(state.error) + '</div>' +
+          '<p><button type="button" class="search-go" data-action="refresh">Повторить загрузку</button></p>';
+      } else if (state.view === 'artists' || state.view === 'statuses') {
+        body = makeCategories(state.view);
+      } else if (state.view === 'songs') {
+        body = makeSongPage();
+      } else {
+        body = makeHome();
+      }
+      root.innerHTML = makeHeader() + body;
+      if (!state.loading && state.view === 'songs') updateSongResults();
+      if (!state.loading && (state.view === 'artists' || state.view === 'statuses')) updateCategoryResults();
+    }
+
+    function scrollTop() {
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+      catch (error) { window.scrollTo(0, 0); }
+    }
+
+    function navigate(view) {
+      state.view = view;
+      state.menuSearch = '';
+      render();
+      scrollTop();
+    }
+
+    function openSongs(type, value, origin) {
+      state.origin = origin || 'home';
+      state.filter = { type: type, value: value || '' };
+      state.search = '';
+      state.page = 1;
+      navigate('songs');
+    }
+
+    function goBack() {
+      if (!modal.hidden) { closeShareModal(); return; }
+      if (state.view === 'songs') navigate(state.origin || 'home');
+      else if (state.view !== 'home') navigate('home');
+    }
+
+    // ВСТАВЬТЕ сюда ссылку на опубликованное веб-приложение Apps Script (заканчивается на /exec)
+    const API_URL = 'https://script.google.com/macros/s/AKfycbz_kPBj-aLDCsujl6jXNf9JljlqkSZ94Dq54womKJwN8UNvXCW5s5LUhTdw-Gm65Cl-gg/exec';
+    const CACHE_KEY = 'karaoke-catalog-v1';
+
+    function applyCatalog(data) {
+      const incoming = data && Array.isArray(data.songs) ? data.songs : [];
+      state.songs = incoming.map(function (song, index) {
+        return Object.assign({}, song, { _index: index });
+      });
+      state.updatedAt = data ? data.updatedAt : null;
+    }
+
+    function loadCache() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (data && Array.isArray(data.songs) && data.songs.length) {
+          applyCatalog(data);
+          state.loading = false;
+        }
+      } catch (error) { /* кэш недоступен — не страшно */ }
+    }
+
+    function saveCache(data) {
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); }
+      catch (error) { /* кэш недоступен — не страшно */ }
+    }
+
+    function loadCatalog() {
+      if (state.refreshing) return;
+      state.refreshing = true;
+      if (!state.songs.length) state.loading = true;
+      state.error = '';
+      render();
+
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/i.test(API_URL)) {
+        state.loading = false;
+        state.refreshing = false;
+        state.error = 'В index.html не указана ссылка API_URL на опубликованный Apps Script (/exec).';
+        render();
+        return;
+      }
+
+      const url = API_URL + (API_URL.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
+
+      fetch(url, { method: 'GET', cache: 'no-store' })
+        .then(function (response) {
+          if (!response.ok) throw new Error('Сервер ответил: HTTP ' + response.status);
+          return response.json();
+        })
+        .then(function (data) {
+          if (data && data.error) throw new Error(data.error);
+          applyCatalog(data);
+          saveCache(data);
+          state.loading = false;
+          state.refreshing = false;
+          state.error = '';
+          render();
+        })
+        .catch(function (error) {
+          state.loading = false;
+          state.refreshing = false;
+          state.error = error && error.message ? error.message : String(error || 'Неизвестная ошибка');
+          render();
+          if (state.songs.length) {
+            alert('Не удалось обновить список. Показаны сохранённые данные.\n' + state.error);
+          }
+        });
+    }
+
+    function openExternal(url) {
+      if (!isHttpUrl(url)) return;
+      try {
+        if (tg && typeof tg.openLink === 'function' && tg.initData) {
+          tg.openLink(url);
+          return;
+        }
+      } catch (error) { console.warn(error); }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    function openShareModal(song) {
+      if (!song || !isHttpUrl(song.url)) return;
+      state.pendingShareUrl = song.url;
+      state.pendingShareText = (song.displayArtists || (song.artists || []).join(', ')) + ' — ' + song.title;
+      document.getElementById('shareSong').textContent = state.pendingShareText;
+      modal.hidden = false;
+    }
+
+    function closeShareModal() {
+      modal.hidden = true;
+      state.pendingShareUrl = '';
+      state.pendingShareText = '';
+    }
+
+    function confirmShare() {
+      if (!state.pendingShareUrl) return;
+      const url = 'https://t.me/share/url?url=' + encodeURIComponent(state.pendingShareUrl) +
+        '&text=' + encodeURIComponent(state.pendingShareText);
+      closeShareModal();
+      try {
+        if (tg && typeof tg.openTelegramLink === 'function' && tg.initData) {
+          tg.openTelegramLink(url);
+          return;
+        }
+      } catch (error) { console.warn(error); }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    root.addEventListener('click', function (event) {
+      const button = event.target.closest('[data-action]');
+      if (!button || button.disabled) return;
+      const action = button.dataset.action;
+      if (action === 'refresh') return loadCatalog();
+      if (action === 'back') return goBack();
+      if (action === 'all') return openSongs('all', '', 'home');
+      if (action === 'irina') return openSongs('irina', '', 'home');
+      if (action === 'artists' || action === 'statuses') return navigate(action);
+      if (action === 'home-search') {
+        const input = document.getElementById('homeSearch');
+        const query = input ? input.value : '';
+        openSongs('all', '', 'home');
+        state.search = query;
+        state.page = 1;
+        const field = document.getElementById('songSearch');
+        if (field) field.value = query;
+        updateSongResults();
+        return;
+      }
+      if (action === 'category') {
+        const categories = (state.view === 'artists' ? getArtists() : getStatuses()).filter(function (entry) {
+          return normalize(entry.name).includes(normalize(state.menuSearch));
+        });
+        const entry = categories[Number(button.dataset.categoryIndex)];
+        if (entry) openSongs(state.view === 'artists' ? 'artist' : 'status', entry.name, state.view);
+        return;
+      }
+      if (action === 'prev' || action === 'next') {
+        state.page += action === 'next' ? 1 : -1;
+        updateSongResults();
+        scrollTop();
+        return;
+      }
+      if (action === 'share' || action === 'video' || action === 'lyrics') {
+        const song = state.songs[Number(button.dataset.songIndex)];
+        if (!song) return;
+        if (action === 'share') openShareModal(song);
+        else openExternal(action === 'lyrics' ? song.lyricsUrl : song.url);
+      }
+    });
+
+    root.addEventListener('input', function (event) {
+      if (event.target.id === 'songSearch') {
+        state.search = event.target.value;
+        state.page = 1;
+        updateSongResults();
+      } else if (event.target.id === 'menuSearch') {
+        state.menuSearch = event.target.value;
+        updateCategoryResults();
+      }
+    });
+
+    root.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' && event.target.id === 'homeSearch') {
+        event.preventDefault();
+        const searchButton = root.querySelector('[data-action="home-search"]');
+        if (searchButton) searchButton.click();
+      }
+    });
+
+    document.getElementById('cancelShare').addEventListener('click', closeShareModal);
+    document.getElementById('confirmShare').addEventListener('click', confirmShare);
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal) closeShareModal();
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !modal.hidden) closeShareModal();
+    });
+
+    loadCache();
+    render();
+    loadCatalog();
+  </script>
+</body>
+</html>
