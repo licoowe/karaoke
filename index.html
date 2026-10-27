@@ -45,7 +45,7 @@
     #app {
       max-width: 780px;
       margin: 0 auto;
-      padding: 22px 16px calc(36px + env(safe-area-inset-bottom, 0px));
+      padding: calc(22px + env(safe-area-inset-top, 0px)) 16px calc(36px + env(safe-area-inset-bottom, 0px));
     }
     .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
     .brand-kicker {
@@ -124,7 +124,6 @@
     }
     .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
     .tag { font-size: 10px; line-height: 1.2; color: var(--muted); background: var(--surface-2); padding: 5px 8px; border-radius: 7px; }
-    .tag.irina { color: #e3d8ff; background: rgba(145, 104, 255, .16); }
     .song-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 16px; }
     .song-btn {
       border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2);
@@ -157,7 +156,7 @@
     .modal-buttons button { flex: 1; min-height: 43px; border-radius: 11px; border: 1px solid var(--line); background: #3b3151; color: #fff; font-weight: 750; }
     .modal-buttons .confirm { background: var(--purple-deep); border-color: transparent; }
     @media (min-width: 560px) {
-      #app { padding: 26px 25px 45px; }
+      #app { padding: calc(26px + env(safe-area-inset-top, 0px)) 25px 45px; }
       .mini-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .songs-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .song-card { display: flex; flex-direction: column; }
@@ -282,7 +281,7 @@
     function getBaseSongs() {
       const filter = state.filter;
       return state.songs.filter(function (song) {
-        if (filter.type === 'irina') return !!song.withIrina;
+        if (filter.type === 'minus') return !!song.minus;
         if (filter.type === 'artist') {
           return (Array.isArray(song.artists) ? song.artists : []).some(function (artist) {
             return normalize(artist) === normalize(filter.value);
@@ -317,7 +316,7 @@
     }
 
     function makeHome() {
-      const countIrina = state.songs.filter(function (song) { return song.withIrina; }).length;
+      const countMinus = state.songs.filter(function (song) { return song.minus; }).length;
       return '<section class="hero">' +
         '<div class="hero-eyebrow">ТВОЙ МУЗЫКАЛЬНЫЙ КАТАЛОГ</div>' +
         '<h2>Что будем петь?</h2>' +
@@ -332,7 +331,7 @@
         menuCard('all', '♫', 'Все песни', numberLabel(state.songs.length, 'песня', 'песни', 'песен')) +
         menuCard('artists', '♬', 'По исполнителям', numberLabel(getArtists().length, 'исполнитель', 'исполнителя', 'исполнителей')) +
         menuCard('statuses', '≡', 'По статусу', numberLabel(getStatuses().length, 'категория', 'категории', 'категорий')) +
-        menuCard('irina', '♪', 'Пою с Ириной', numberLabel(countIrina, 'песня', 'песни', 'песен')) +
+        menuCard('minus', '♩', 'Минусовки', numberLabel(countMinus, 'песня', 'песни', 'песен')) +
         '</div>' +
         '<div class="footnote">Чтобы увидеть изменения в таблице, нажми «Обновить».</div>';
     }
@@ -370,7 +369,7 @@
 
     function makeSongPage() {
       let title = 'Все песни';
-      if (state.filter.type === 'irina') title = 'Пою с Ириной';
+      if (state.filter.type === 'minus') title = 'Минусовки';
       if (state.filter.type === 'artist') title = state.filter.value;
       if (state.filter.type === 'status') title = state.filter.value;
       return '<div class="page-head">' + makeBack() +
@@ -389,8 +388,7 @@
     function makeSongCard(song) {
       const status = String(song.status || '').trim();
       const hasLyrics = isHttpUrl(song.lyricsUrl);
-      const tags = (status ? '<span class="tag">' + escapeHtml(status) + '</span>' : '') +
-        (song.withIrina ? '<span class="tag irina">С Ириной</span>' : '');
+      const tags = status ? '<span class="tag">' + escapeHtml(status) + '</span>' : '';
       return '<article class="song-card' + (song.minus ? ' has-minus' : '') + '">' +
         (song.minus ? '<span class="minus-badge">МИНУС</span>' : '') +
         '<div class="song-info">' +
@@ -594,7 +592,7 @@
       if (action === 'refresh') return loadCatalog();
       if (action === 'back') return goBack();
       if (action === 'all') return openSongs('all', '', 'home');
-      if (action === 'irina') return openSongs('irina', '', 'home');
+      if (action === 'minus') return openSongs('minus', '', 'home');
       if (action === 'artists' || action === 'statuses') return navigate(action);
       if (action === 'home-search') {
         const input = document.getElementById('homeSearch');
