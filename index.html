@@ -24,7 +24,7 @@
       --shadow: 0 12px 34px rgba(0, 0, 0, .16);
     }
     *, *::before, *::after { box-sizing: border-box; }
-    html { min-height: 100%; background: var(--bg); }
+    html { min-height: 100%; background: var(--bg); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body {
       margin: 0;
       min-height: 100vh;
@@ -83,7 +83,7 @@
     .search-input {
       flex: 1; min-width: 0; width: 100%; background: var(--surface);
       border: 1px solid var(--line); border-radius: 14px;
-      color: var(--text); padding: 13px 15px; outline: none;
+      color: var(--text); padding: 13px 15px; outline: none; font-size: 16px;
     }
     .search-input::placeholder { color: #9f91b8; }
     .search-go {
@@ -124,13 +124,58 @@
     }
     .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
     .tag { font-size: 10px; line-height: 1.2; color: var(--muted); background: var(--surface-2); padding: 5px 8px; border-radius: 7px; }
-    .song-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 16px; }
+    .song-actions { display: flex; align-items: center; gap: 6px; margin-top: 14px; }
+    .song-actions .grow { flex: 1; }
     .song-btn {
-      border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2);
-      color: var(--text); min-height: 40px; padding: 8px 10px; font-weight: 650; font-size: 12px;
+      border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2);
+      color: var(--text); min-height: 44px; padding: 8px 10px; font-weight: 650; font-size: 12px; white-space: nowrap;
     }
-    .song-btn.primary { background: var(--purple-deep); border-color: transparent; color: white; grid-column: 1 / -1; }
-    .song-actions:not(.has-lyrics) .song-btn.video { grid-column: 1 / -1; }
+    .round-btn {
+      width: 44px; height: 44px; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 0;
+      border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text);
+    }
+    .plus-btn { border-radius: 50%; border: 1.5px solid var(--purple); background: rgba(170, 139, 255, .14); color: #d6c9ff; }
+    .plus-btn.is-added { background: var(--purple-deep); border-color: var(--purple-deep); color: #fff; }
+    .ico { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+    .ico.small { width: 16px; height: 16px; vertical-align: -3px; }
+    .today-card {
+      width: 100%; display: flex; align-items: center; gap: 14px; margin: 14px 0 0; padding: 15px 16px; text-align: left;
+      border-radius: 18px; border: 1px solid var(--purple); background: linear-gradient(135deg, #2c2150, var(--surface)); color: var(--text);
+    }
+    .today-card .grow { flex: 1; min-width: 0; }
+    .today-icon { width: 46px; height: 46px; border-radius: 14px; background: var(--purple-deep); color: #fff; display: flex; align-items: center; justify-content: center; flex: none; }
+    .today-name { display: block; font-size: 17px; font-weight: 800; }
+    .today-sub { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .today-list { display: grid; gap: 10px; margin-top: 16px; }
+    .today-row { display: flex; align-items: center; gap: 10px; padding: 13px 14px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); }
+    .today-num { width: 30px; height: 30px; flex: none; border-radius: 50%; background: rgba(170, 139, 255, .2); color: #d6c9ff; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+    .today-info { flex: 1; min-width: 0; }
+    .today-row .song-title { font-size: 16px; }
+    .today-row .song-artist { margin-bottom: 2px; }
+    .today-actions { display: flex; gap: 6px; flex: none; }
+    .minus-inline {
+      margin-left: 6px; padding: 2px 7px; border-radius: 999px; font-size: 9px; font-weight: 800; letter-spacing: .09em;
+      color: rgba(234, 224, 255, .75); background: rgba(202, 178, 255, .1); border: 1px solid rgba(222, 202, 255, .16); white-space: nowrap;
+    }
+    .add-more {
+      margin-top: 16px; width: 100%; min-height: 56px; border-radius: 18px; border: 1.5px dashed var(--purple);
+      background: rgba(170, 139, 255, .08); color: #d6c9ff; font-weight: 800; font-size: 16px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .today-pill {
+      position: fixed; z-index: 10; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      height: 52px; padding: 0 22px; border-radius: 26px; border: 0; background: var(--purple-deep); color: #fff;
+      font-weight: 800; font-size: 15px; display: flex; align-items: center; gap: 10px; white-space: nowrap;
+      box-shadow: 0 10px 30px rgba(116, 82, 217, .5);
+    }
+    .today-pill[hidden] { display: none; }
+    body.has-pill #app { padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
+    .toast {
+      position: fixed; z-index: 30; left: 50%; transform: translateX(-50%); bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+      max-width: calc(100% - 32px); padding: 11px 16px; border-radius: 12px; background: #3b3151; color: #fff;
+      font-size: 13px; font-weight: 650; box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    }
+    .toast[hidden] { display: none; }
     .pagination { margin-top: 20px; display: flex; justify-content: center; gap: 12px; align-items: center; }
     .pagination button { color: var(--text); border: 1px solid var(--line); background: var(--surface); border-radius: 12px; min-width: 48px; min-height: 43px; font-size: 20px; }
     .pagination .page-text { font-size: 13px; color: var(--muted); min-width: 115px; text-align: center; }
@@ -197,17 +242,11 @@
 <body>
   <div id="app" aria-live="polite"></div>
 
-  <div class="modal-overlay" id="shareModal" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
-      <h3 id="shareTitle">Отправить песню?</h3>
-      <div class="modal-song" id="shareSong"></div>
-      <div class="modal-desc">Откроется выбор чата в Telegram. После выбора останется подтвердить отправку ссылки на YouTube.</div>
-      <div class="modal-buttons">
-        <button type="button" id="cancelShare">Отмена</button>
-        <button type="button" class="confirm" id="confirmShare">Отправить</button>
-      </div>
-    </div>
-  </div>
+  <button type="button" class="today-pill" id="todayPill" hidden>
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>
+    <span id="todayPillText"></span>
+  </button>
+  <div class="toast" id="toast" role="status" hidden></div>
 
   <div class="lyrics-overlay" id="lyricsView" hidden>
     <div class="lyrics-inner">
@@ -232,7 +271,6 @@
 
     const PAGE_SIZE = 12;
     const root = document.getElementById('app');
-    const modal = document.getElementById('shareModal');
     const lyricsView = document.getElementById('lyricsView');
     const tg = (window.Telegram && window.Telegram.WebApp) || null;
 
@@ -248,8 +286,7 @@
       search: '',
       menuSearch: '',
       page: 1,
-      pendingShareUrl: '',
-      pendingShareText: ''
+      todayOrigin: 'home'
     };
 
     if (tg) {
@@ -366,7 +403,8 @@
         '<h2>Что будем петь?</h2>' +
         '<p>' + numberLabel(state.songs.length, 'песня', 'песни', 'песен') + ' в каталоге. Выбирай, ищи и делись в Telegram.</p>' +
         '</section>' +
-        '<div class="search-wrap">' +
+        makeTodayCard() +
+        '<div class="search-wrap" style="margin-top:14px">' +
         '<input class="search-input" id="homeSearch" placeholder="Найти песню или исполнителя" autocomplete="off" enterkeyhint="search" aria-label="Поиск песни">' +
         '<button type="button" class="search-go" data-action="home-search">Найти</button>' +
         '</div>' +
@@ -433,6 +471,7 @@
       const status = String(song.status || '').trim();
       const hasOwnLyrics = !!String(song.lyrics || '').trim();
       const hasLyrics = hasOwnLyrics || isHttpUrl(song.lyricsUrl);
+      const added = isInToday(song);
       const tags = status ? '<span class="tag">' + escapeHtml(status) + '</span>' : '';
       return '<article class="song-card' + (song.minus ? ' has-minus' : '') + '">' +
         (song.minus ? '<span class="minus-badge">МИНУС</span>' : '') +
@@ -440,10 +479,12 @@
         '<div class="song-artist">' + escapeHtml(song.displayArtists || (song.artists || []).join(', ')) + '</div>' +
         '<h3 class="song-title">' + escapeHtml(song.title) + '</h3></div>' +
         (tags ? '<div class="tags">' + tags + '</div>' : '') +
-        '<div class="song-actions' + (hasLyrics ? ' has-lyrics' : '') + '">' +
-        '<button type="button" class="song-btn primary" data-action="share" data-song-index="' + song._index + '">Отправить в чат ↗</button>' +
+        '<div class="song-actions">' +
         '<button type="button" class="song-btn video" data-action="video" data-song-index="' + song._index + '">YouTube</button>' +
-        (hasLyrics ? '<button type="button" class="song-btn" data-action="lyrics" data-song-index="' + song._index + '">Текст песни' + (hasOwnLyrics ? '' : ' ↗') + '</button>' : '') +
+        (hasLyrics ? '<button type="button" class="song-btn" data-action="lyrics" data-song-index="' + song._index + '">Текст' + (hasOwnLyrics ? '' : ' ↗') + '</button>' : '') +
+        '<button type="button" class="song-btn" data-action="share" data-song-index="' + song._index + '">Отправить</button>' +
+        '<span class="grow"></span>' +
+        '<button type="button" class="round-btn plus-btn' + (added ? ' is-added' : '') + '" data-action="toggle-today" data-song-index="' + song._index + '" aria-pressed="' + (added ? 'true' : 'false') + '" aria-label="' + (added ? 'Убрать из списка на сегодня' : 'Добавить в список на сегодня') + '">' + (added ? ICON_CHECK : ICON_PLUS) + '</button>' +
         '</div></article>';
     }
 
@@ -470,6 +511,7 @@
     }
 
     function render() {
+      checkToday();
       if (tg && tg.BackButton) {
         try {
           if (state.view === 'home') tg.BackButton.hide();
@@ -486,12 +528,15 @@
         body = makeCategories(state.view);
       } else if (state.view === 'songs') {
         body = makeSongPage();
+      } else if (state.view === 'today') {
+        body = makeTodayPage();
       } else {
         body = makeHome();
       }
       root.innerHTML = makeHeader() + body;
       if (!state.loading && state.view === 'songs') updateSongResults();
       if (!state.loading && (state.view === 'artists' || state.view === 'statuses')) updateCategoryResults();
+      updatePill();
     }
 
     function scrollTop() {
@@ -516,8 +561,8 @@
 
     function goBack() {
       if (!lyricsView.hidden) { closeLyrics(); return; }
-      if (!modal.hidden) { closeShareModal(); return; }
       if (state.view === 'songs') navigate(state.origin || 'home');
+      else if (state.view === 'today') navigate(state.todayOrigin || 'home');
       else if (state.view !== 'home') navigate('home');
     }
 
@@ -638,32 +683,180 @@
       document.body.style.overflow = '';
     }
 
-    function openShareModal(song) {
+    function showToast(message) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.hidden = false;
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(function () { el.hidden = true; }, 2200);
+    }
+
+    function copyText(value) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(value).then(function () { return true; }, function () { return false; });
+      }
+      try {
+        const area = document.createElement('textarea');
+        area.value = value;
+        area.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(area);
+        area.select();
+        const ok = document.execCommand('copy');
+        area.remove();
+        return Promise.resolve(ok);
+      } catch (error) { return Promise.resolve(false); }
+    }
+
+    // Отправка: без переходов на другие страницы.
+    // В Telegram — встроенный выбор чата, в браузере и на iPhone — системное «Поделиться».
+    function shareSong(song) {
       if (!song || !isHttpUrl(song.url)) return;
-      state.pendingShareUrl = song.url;
-      state.pendingShareText = (song.displayArtists || (song.artists || []).join(', ')) + ' — ' + song.title;
-      document.getElementById('shareSong').textContent = state.pendingShareText;
-      modal.hidden = false;
-    }
-
-    function closeShareModal() {
-      modal.hidden = true;
-      state.pendingShareUrl = '';
-      state.pendingShareText = '';
-    }
-
-    function confirmShare() {
-      if (!state.pendingShareUrl) return;
-      const url = 'https://t.me/share/url?url=' + encodeURIComponent(state.pendingShareUrl) +
-        '&text=' + encodeURIComponent(state.pendingShareText);
-      closeShareModal();
+      const text = (song.displayArtists || (song.artists || []).join(', ')) + ' — ' + song.title;
+      const tgUrl = 'https://t.me/share/url?url=' + encodeURIComponent(song.url) + '&text=' + encodeURIComponent(text);
       try {
         if (tg && typeof tg.openTelegramLink === 'function' && tg.initData) {
-          tg.openTelegramLink(url);
+          tg.openTelegramLink(tgUrl);
           return;
         }
       } catch (error) { console.warn(error); }
-      window.open(url, '_blank', 'noopener,noreferrer');
+      if (navigator.share) {
+        navigator.share({ title: text, text: text, url: song.url }).catch(function () { /* закрыли окно */ });
+        return;
+      }
+      copyText(text + '\n' + song.url).then(function (ok) {
+        showToast(ok ? 'Ссылка скопирована' : 'Не удалось поделиться');
+      });
+    }
+
+    // ---------- Список «Спою сегодня» ----------
+    const TODAY_KEY = 'karaoke-today-v1';
+    const TODAY_RESET_HOUR = 10;
+    const today = { key: '', items: [] };
+
+    function svgIcon(inner, extra) {
+      return '<svg class="ico' + (extra ? ' ' + extra : '') + '" viewBox="0 0 24 24" aria-hidden="true">' + inner + '</svg>';
+    }
+    const ICON_PLUS = svgIcon('<path d="M12 5v14M5 12h14"/>');
+    const ICON_CHECK = svgIcon('<path d="M5 12.5l4.5 4.5L19 7.5"/>');
+    const ICON_CLOSE = svgIcon('<path d="M6 6l12 12M18 6L6 18"/>');
+    const ICON_DOC = svgIcon('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>');
+    const ICON_SEND = svgIcon('<path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/>');
+    const ICON_NOTE = svgIcon('<path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>');
+    const ICON_CHEVRON = svgIcon('<path d="M9 6l6 6-6 6"/>');
+    const ICON_CLOCK = svgIcon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', 'small');
+
+    // «День списка» меняется в 10:00 по времени устройства.
+    function currentDayKey() {
+      const d = new Date(Date.now() - TODAY_RESET_HOUR * 3600000);
+      return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    }
+
+    function saveToday() {
+      try { localStorage.setItem(TODAY_KEY, JSON.stringify(today)); } catch (error) { /* не страшно */ }
+    }
+
+    function loadToday() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(TODAY_KEY) || 'null');
+        if (raw && raw.key === currentDayKey() && Array.isArray(raw.items)) {
+          today.key = raw.key;
+          today.items = raw.items.map(String);
+          return;
+        }
+      } catch (error) { /* начинаем с пустого списка */ }
+      today.key = currentDayKey();
+      today.items = [];
+      saveToday();
+    }
+
+    // Возвращает true, если наступило 10:00 и список очистился.
+    function checkToday() {
+      if (today.key === currentDayKey()) return false;
+      today.key = currentDayKey();
+      today.items = [];
+      saveToday();
+      return true;
+    }
+
+    function songKey(song) {
+      return (String(song.displayArtists || (song.artists || []).join(', ')) + '|' + song.title).toLowerCase();
+    }
+
+    function isInToday(song) { return today.items.indexOf(songKey(song)) !== -1; }
+
+    function getTodaySongs() {
+      const byKey = {};
+      state.songs.forEach(function (song) { byKey[songKey(song)] = song; });
+      return today.items.map(function (key) { return byKey[key]; }).filter(Boolean);
+    }
+
+    function resetLabel() {
+      return new Date().getHours() < TODAY_RESET_HOUR ? 'сегодня в 10:00' : 'завтра в 10:00';
+    }
+
+    function toggleToday(song) {
+      checkToday();
+      const key = songKey(song);
+      const index = today.items.indexOf(key);
+      if (index === -1) today.items.push(key);
+      else today.items.splice(index, 1);
+      saveToday();
+      if (state.view === 'songs') updateSongResults();
+      else render();
+      updatePill();
+    }
+
+    function updatePill() {
+      const pill = document.getElementById('todayPill');
+      const count = getTodaySongs().length;
+      const show = !state.loading && count > 0 && state.view !== 'home' && state.view !== 'today';
+      pill.hidden = !show;
+      document.body.classList.toggle('has-pill', show);
+      if (show) document.getElementById('todayPillText').textContent = 'Сегодня · ' + count;
+    }
+
+    function makeTodayCard() {
+      const count = getTodaySongs().length;
+      const sub = count
+        ? numberLabel(count, 'песня', 'песни', 'песен') + ' · очистится ' + resetLabel()
+        : 'Пока пусто · добавляй песни плюсом';
+      return '<button type="button" class="today-card" data-action="today">' +
+        '<span class="today-icon">' + ICON_NOTE + '</span>' +
+        '<span class="grow"><span class="today-name">Спою сегодня</span><span class="today-sub">' + sub + '</span></span>' +
+        ICON_CHEVRON + '</button>';
+    }
+
+    function makeTodayRow(song, index) {
+      const hasLyrics = !!String(song.lyrics || '').trim() || isHttpUrl(song.lyricsUrl);
+      const i = song._index;
+      return '<div class="today-row"><div class="today-num">' + (index + 1) + '</div>' +
+        '<div class="today-info"><div class="song-artist">' + escapeHtml(song.displayArtists || (song.artists || []).join(', ')) +
+        (song.minus ? '<span class="minus-inline">МИНУС</span>' : '') + '</div>' +
+        '<h3 class="song-title">' + escapeHtml(song.title) + '</h3></div>' +
+        '<div class="today-actions">' +
+        (hasLyrics ? '<button type="button" class="round-btn" data-action="lyrics" data-song-index="' + i + '" aria-label="Текст песни">' + ICON_DOC + '</button>' : '') +
+        '<button type="button" class="round-btn" data-action="share" data-song-index="' + i + '" aria-label="Отправить">' + ICON_SEND + '</button>' +
+        '<button type="button" class="round-btn" data-action="toggle-today" data-song-index="' + i + '" aria-label="Убрать из списка">' + ICON_CLOSE + '</button>' +
+        '</div></div>';
+    }
+
+    function makeTodayPage() {
+      const songs = getTodaySongs();
+      const body = songs.length
+        ? '<div class="today-list">' + songs.map(makeTodayRow).join('') + '</div>'
+        : emptyState('Список пока пуст', 'Нажми «+» на карточке песни, чтобы добавить её на сегодня.');
+      return '<div class="page-head">' + makeBack() + '<h2>Спою сегодня</h2>' +
+        '<div class="page-caption">' + ICON_CLOCK + ' Список очистится ' + resetLabel() + '</div></div>' +
+        body +
+        '<button type="button" class="add-more" data-action="add-more">' + ICON_PLUS + 'Добавить песню</button>' +
+        '<div class="footnote">Каждый день в 10:00 список начинается заново</div>';
+    }
+
+    function tickToday() {
+      if (!checkToday()) return;
+      if (state.view === 'songs') updateSongResults();
+      else render();
+      updatePill();
     }
 
     root.addEventListener('click', function (event) {
@@ -671,6 +864,8 @@
       if (!button || button.disabled) return;
       const action = button.dataset.action;
       if (action === 'refresh') return loadCatalog();
+      if (action === 'today') { state.todayOrigin = state.view; return navigate('today'); }
+      if (action === 'add-more') return openSongs('all', '', 'today');
       if (action === 'back') return goBack();
       if (action === 'all') return openSongs('all', '', 'home');
       if (action === 'minus') return openSongs('minus', '', 'home');
@@ -700,10 +895,11 @@
         scrollTop();
         return;
       }
-      if (action === 'share' || action === 'video' || action === 'lyrics') {
+      if (action === 'share' || action === 'video' || action === 'lyrics' || action === 'toggle-today') {
         const song = state.songs[Number(button.dataset.songIndex)];
         if (!song) return;
-        if (action === 'share') openShareModal(song);
+        if (action === 'share') shareSong(song);
+        else if (action === 'toggle-today') toggleToday(song);
         else if (action === 'lyrics') {
           if (String(song.lyrics || '').trim()) openLyrics(song);
           else openExternal(song.lyricsUrl);
@@ -736,16 +932,17 @@
     document.getElementById('lyricsVideo').addEventListener('click', function () {
       if (currentLyricsSong) openExternal(currentLyricsSong.url);
     });
-    document.getElementById('cancelShare').addEventListener('click', closeShareModal);
-    document.getElementById('confirmShare').addEventListener('click', confirmShare);
-    modal.addEventListener('click', function (event) {
-      if (event.target === modal) closeShareModal();
+    document.getElementById('todayPill').addEventListener('click', function () {
+      state.todayOrigin = state.view;
+      navigate('today');
     });
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && !lyricsView.hidden) closeLyrics();
-      else if (event.key === 'Escape' && !modal.hidden) closeShareModal();
     });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) tickToday(); });
+    setInterval(tickToday, 60000);
 
+    loadToday();
     loadCache();
     render();
     loadCatalog();
