@@ -330,6 +330,15 @@
 
     /* Уведомления */
     .notif-list { display: grid; gap: 9px; }
+
+    /* Фильтр по статусам */
+    .chips { display: flex; gap: 7px; overflow-x: auto; margin: 11px -16px 0; padding: 0 16px 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip {
+      flex: none; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line);
+      background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 650; white-space: nowrap;
+    }
+    .chip.is-active { background: var(--purple-deep); border-color: var(--purple-deep); color: #fff; }
     .notif {
       padding: 14px 15px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface);
     }
@@ -379,7 +388,7 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbzoGybuARrCDAIH862AH4-AAQHuPYxobppwWrvwKMP40zfzYqyBfJNkKK6Mun7YkHuUQQ/exec';
 
     const PAGE_SIZE = 12;
-    const STATUS_LIST = ['Пою', 'Пою редко', 'Попробую спеть', 'Не пою'];
+    const STATUS_LIST = ['Пою', 'Пою редко', 'Подтянуть', 'Попробую спеть', 'Не пою'];
     const CACHE_KEY = 'karaoke-catalog-v3';
     const AUTH_KEY = 'karaoke-auth-v1';
     const USER_CACHE_KEY = 'karaoke-user-v2';
@@ -404,6 +413,7 @@
       origin: 'home',
       filter: { type: 'all', value: '' },
       search: '',
+      statusFilter: [],
       menuSearch: '',
       page: 1,
       todayOrigin: 'home',
@@ -626,9 +636,56 @@
       });
     }
 
+    const NO_STATUS = '__none__';
+
+    // Кнопки фильтра есть только в «Все песни» и «Мои песни → Все».
+    function statusFilterOptions() {
+      if (state.filter.type === 'all') return [{ value: NO_STATUS, label: 'Без статуса' }].concat(STATUS_LIST.map(function (s) { return { value: s, label: s }; }));
+      if (state.filter.type === 'mine') return STATUS_LIST.filter(function (s) { return s !== 'Не пою'; }).map(function (s) { return { value: s, label: s }; });
+      return [];
+    }
+
+    function passesStatusFilter(song) {
+      if (!state.statusFilter.length) return true;
+      const status = getStatusOf(song) || NO_STATUS;
+      return state.statusFilter.indexOf(status) !== -1;
+    }
+
+    function makeStatusChips() {
+      const options = statusFilterOptions();
+      if (!options.length) return '';
+      const all = !state.statusFilter.length;
+      return '<div class="chips" id="statusChips" role="group" aria-label="Фильтр по статусам">' +
+        '<button type="button" class="chip' + (all ? ' is-active' : '') + '" data-action="chip" data-value="" aria-pressed="' + all + '">Все</button>' +
+        options.map(function (o) {
+          const on = state.statusFilter.indexOf(o.value) !== -1;
+          return '<button type="button" class="chip' + (on ? ' is-active' : '') + '" data-action="chip" data-value="' + escapeHtml(o.value) + '" aria-pressed="' + on + '">' + escapeHtml(o.label) + '</button>';
+        }).join('') + '</div>';
+    }
+
+    function toggleStatusChip(value) {
+      if (!value) state.statusFilter = [];
+      else {
+        const i = state.statusFilter.indexOf(value);
+        if (i === -1) state.statusFilter.push(value);
+        else state.statusFilter.splice(i, 1);
+        // Выбраны все варианты — то же самое, что «Все».
+        if (state.statusFilter.length === statusFilterOptions().length) state.statusFilter = [];
+      }
+      Array.prototype.forEach.call(root.querySelectorAll('#statusChips .chip'), function (chip) {
+        const v = chip.dataset.value;
+        const on = v ? state.statusFilter.indexOf(v) !== -1 : !state.statusFilter.length;
+        chip.classList.toggle('is-active', on);
+        chip.setAttribute('aria-pressed', on);
+      });
+      state.page = 1;
+      updateSongResults();
+    }
+
     function getFilteredSongs() {
       const query = normalize(state.search);
       return getBaseSongs().filter(function (song) {
+        if (!passesStatusFilter(song)) return false;
         if (!query) return true;
         return normalize([song.title, artistsText(song), (song.artists || []).join(' ')].join(' ')).includes(query);
       });
@@ -1113,7 +1170,8 @@
       return '<div class="page-head">' + makeBack() +
         '<h2>' + escapeHtml(title) + '</h2>' +
         '<div class="page-caption">' + caption + '</div></div>' +
-        '<input class="search-input" id="songSearch" autocomplete="off" enterkeyhint="search" placeholder="Поиск по названию или исполнителю" value="' + escapeHtml(state.search) + '">' +
+        '<input class="search-input" id="songSearch" autocomplete="off" enterkeyhint="search" placeholder="Поиск в этом разделе" value="' + escapeHtml(state.search) + '">' +
+        makeStatusChips() +
         '<div class="results-count" id="songCount"></div>' +
         '<div class="songs-list" id="songResults"></div>' +
         '<nav class="pagination" id="pages" aria-label="Страницы каталога"></nav>';
@@ -1150,13 +1208,13 @@
       const start = (state.page - 1) * PAGE_SIZE;
       const pageSongs = filtered.slice(start, start + PAGE_SIZE);
       count.textContent = numberLabel(filtered.length, 'песня', 'песни', 'песен') + ' найдено';
-      let emptyText = 'Измени поисковый запрос или вернись к категориям.';
+      let emptyText = state.statusFilter.length ? 'Измени фильтр или поисковый запрос.' : 'Измени поисковый запрос или вернись к категориям.';
       if (!state.search && state.filter.type === 'mine') emptyText = 'Поставь песням статус на карточке, и они появятся здесь.';
       if (!state.search && state.filter.type === 'status') emptyText = 'Поставь этот статус на карточке песни, и она появится здесь.';
       if (!state.search && state.filter.type === 'month') emptyText = 'В этом месяце новых песен пока нет.';
       list.innerHTML = pageSongs.length
         ? pageSongs.map(makeSongCard).join('')
-        : emptyState(state.search ? 'Песен не найдено' : 'Пока пусто', emptyText);
+        : emptyState(state.search || state.statusFilter.length ? 'Песен не найдено' : 'Пока пусто', emptyText);
       pager.innerHTML = filtered.length > PAGE_SIZE
         ? '<button type="button" aria-label="Предыдущая страница" data-action="prev"' + (state.page === 1 ? ' disabled' : '') + '>←</button>' +
           '<span class="page-text">' + state.page + ' из ' + totalPages + '</span>' +
@@ -1459,6 +1517,7 @@
       state.origin = origin || 'home';
       state.filter = { type: type, value: value || '' };
       state.search = search || '';
+      state.statusFilter = [];
       state.page = 1;
       navigate('songs');
     }
@@ -1538,6 +1597,7 @@
         if (entry) openSongs('artist', entry.name, 'artists');
         return;
       }
+      if (action === 'chip') return toggleStatusChip(button.dataset.value);
       if (action === 'prev' || action === 'next') {
         state.page += action === 'next' ? 1 : -1;
         updateSongResults();
