@@ -339,6 +339,20 @@
       background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 650; white-space: nowrap;
     }
     .chip.is-active { background: var(--purple-deep); border-color: var(--purple-deep); color: #fff; }
+    .chips.wrap { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }
+    .yt-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 46px;
+      margin: -2px 0 14px; border-radius: 13px; border: 1px solid var(--line); background: var(--surface-2);
+      color: var(--text); font-weight: 700; font-size: 14px; text-decoration: none;
+    }
+    .yt-btn[aria-disabled="true"] { opacity: .43; pointer-events: none; }
+    .yt-btn .ico { width: 18px; height: 18px; color: var(--purple); }
+    .url-row { display: flex; gap: 8px; }
+    .url-row .field-input { flex: 1; }
+    .paste-btn {
+      flex: none; padding: 0 14px; border-radius: 13px; border: 1px solid var(--line);
+      background: var(--surface-2); color: var(--text); font-weight: 700; font-size: 13px;
+    }
     .notif {
       padding: 14px 15px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface);
     }
@@ -426,7 +440,7 @@
     const auth = { token: '', login: '' };
     const user = { statuses: {}, today: [], notifications: [], vip: false };
     const authForm = { mode: 'login', login: '', password: '', password2: '', code: '', showPassword: false, busy: false, error: '' };
-    const requestForm = { artist: '', title: '', hasVideo: null, url: '', busy: false, error: '', touched: false };
+    const requestForm = { artist: '', title: '', hasVideo: null, url: '', myStatus: '', busy: false, error: '', touched: false };
 
     // ---------- Утилиты ----------
     function escapeHtml(value) {
@@ -1276,6 +1290,46 @@
       return errors;
     }
 
+    const REQUEST_DRAFT_KEY = 'karaoke-request-draft';
+    const ICON_PLAY = svgIcon('<rect x="3" y="5" width="18" height="14" rx="4"/><path d="M10 9.5v5l4.5-2.5z"/>');
+
+    // Запрос для YouTube: «караоке» для кириллицы, «karaoke» для латиницы.
+    function youtubeSearchUrl(artist, title) {
+      const text = String(artist || '').trim() + ' ' + String(title || '').trim();
+      const word = /[а-яё]/i.test(text) ? 'караоке' : 'karaoke';
+      return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(text + ' ' + word);
+    }
+
+    // Черновик заявки: не теряется, пока человек ищет видео в YouTube, даже если вкладка перезагрузится.
+    function saveRequestDraft(open) {
+      storageSet(REQUEST_DRAFT_KEY, {
+        artist: requestForm.artist, title: requestForm.title, hasVideo: requestForm.hasVideo,
+        url: requestForm.url, myStatus: requestForm.myStatus, open: !!open, savedAt: Date.now()
+      });
+    }
+
+    function loadRequestDraft() {
+      const d = storageGet(REQUEST_DRAFT_KEY);
+      if (!d || Date.now() - (d.savedAt || 0) > 24 * 3600000) return;
+      Object.assign(requestForm, {
+        artist: d.artist || '', title: d.title || '', url: d.url || '', myStatus: d.myStatus || '',
+        hasVideo: d.hasVideo === true || d.hasVideo === false ? d.hasVideo : null
+      });
+      // Вернулись из YouTube в течение 30 минут — сразу открываем форму.
+      if (d.open && Date.now() - d.savedAt < 30 * 60000 && auth.token) {
+        state.view = 'request';
+        state.requestOrigin = 'home';
+      }
+    }
+
+    function updateYoutubeButton() {
+      const link = document.getElementById('ytSearch');
+      if (!link) return;
+      const ready = !!(requestForm.artist.trim() && requestForm.title.trim());
+      link.setAttribute('aria-disabled', ready ? 'false' : 'true');
+      link.href = ready ? youtubeSearchUrl(requestForm.artist, requestForm.title) : '#';
+    }
+
     function makeRequestPage() {
       const f = requestForm;
       return '<div class="request-wrap"><div class="page-head">' + makeBack() +
@@ -1288,6 +1342,7 @@
         '<input class="field-input" id="reqArtist" autocomplete="off" maxlength="200" value="' + escapeHtml(f.artist) + '"><div class="field-error" data-error="artist"></div></div>' +
         '<div class="field"><label class="field-label" for="reqTitle">Название песни <span class="req">*</span></label>' +
         '<input class="field-input" id="reqTitle" autocomplete="off" maxlength="200" value="' + escapeHtml(f.title) + '"><div class="field-error" data-error="title"></div></div>' +
+        '<a class="yt-btn" id="ytSearch" data-action="yt-search" href="#" target="_blank" rel="noopener" aria-disabled="true">' + ICON_PLAY + 'Найти в YouTube</a>' +
         '<div class="field"><span class="field-label" id="reqVideoLabel">Есть видео <span class="req">*</span></span>' +
         '<div class="segmented" role="radiogroup" aria-labelledby="reqVideoLabel">' +
         '<button type="button" role="radio" data-action="req-video" data-value="yes" class="' + (f.hasVideo === true ? 'is-active' : '') + '" aria-checked="' + (f.hasVideo === true) + '">Да</button>' +
@@ -1295,8 +1350,17 @@
         '</div><div class="field-error" data-error="hasVideo"></div></div>' +
         (f.hasVideo === true
           ? '<div class="field"><label class="field-label" for="reqUrl">Ссылка <span class="req">*</span></label>' +
-            '<input class="field-input" id="reqUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://youtu.be/…" value="' + escapeHtml(f.url) + '"><div class="field-error" data-error="url"></div></div>'
+            '<div class="url-row"><input class="field-input" id="reqUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://youtu.be/…" value="' + escapeHtml(f.url) + '">' +
+            '<button type="button" class="paste-btn" data-action="paste-url">Вставить</button></div>' +
+            '<div class="field-error" data-error="url"></div></div>'
           : '') +
+        '<div class="field"><span class="field-label" id="reqStatusLabel">Мой статус</span>' +
+        '<div class="chips wrap" role="radiogroup" aria-labelledby="reqStatusLabel">' +
+        STATUS_LIST.map(function (name) {
+          const on = f.myStatus === name;
+          return '<button type="button" role="radio" class="chip' + (on ? ' is-active' : '') + '" data-action="req-status" data-value="' + escapeHtml(name) + '" aria-checked="' + on + '">' + escapeHtml(name) + '</button>';
+        }).join('') +
+        '</div><div class="field-hint">Необязательно. Статус появится только у тебя, когда песня попадёт в каталог.</div></div>' +
         '<button type="submit" class="primary-btn" id="requestSubmit">' + (f.busy ? 'Отправляем…' : user.vip ? 'Добавить песню' : 'Отправить заявку') + '</button>' +
         '</form></div>';
     }
@@ -1316,6 +1380,7 @@
         if (input) input.classList.toggle('is-invalid', requestForm.touched && !!errors[pair[1]]);
       });
       document.getElementById('requestSubmit').disabled = requestForm.busy;
+      updateYoutubeButton();
     }
 
     function submitRequest() {
@@ -1329,13 +1394,16 @@
         artist: requestForm.artist.trim(),
         title: requestForm.title.trim(),
         hasVideo: requestForm.hasVideo,
-        url: requestForm.hasVideo ? requestForm.url.trim() : ''
+        url: requestForm.hasVideo ? requestForm.url.trim() : '',
+        myStatus: requestForm.myStatus
       }).then(function (result) {
-        Object.assign(requestForm, { artist: '', title: '', hasVideo: null, url: '', busy: false, error: '', touched: false });
+        Object.assign(requestForm, { artist: '', title: '', hasVideo: null, url: '', myStatus: '', busy: false, error: '', touched: false });
+        storageSet(REQUEST_DRAFT_KEY, null);
         if (result.added === 'catalog') {
           showToast('Песня добавлена в каталог');
           navigate(state.requestOrigin || 'home');
           loadCatalog();
+          loadUserState();
           return;
         }
         showToast(result.added === 'karaoke' ? 'Песня в очереди на создание караоке' : 'Заявка отправлена');
@@ -1527,7 +1595,7 @@
       if (!lyricsView.hidden) { closeLyrics(); return; }
       if (state.view === 'songs') navigate(state.origin || 'home');
       else if (state.view === 'today') navigate(state.todayOrigin || 'home');
-      else if (state.view === 'request') navigate(state.requestOrigin || 'home');
+      else if (state.view === 'request') { saveRequestDraft(false); navigate(state.requestOrigin || 'home'); }
       else if (state.view === 'notifications') navigate(state.notifOrigin || 'home');
       else if (state.view !== 'home') navigate('home');
     }
@@ -1559,8 +1627,49 @@
         state.recoveryCode = '';
         return navigate('home');
       }
+      if (action === 'req-status') {
+        // Повторное нажатие снимает выбор: поле необязательное.
+        requestForm.myStatus = requestForm.myStatus === button.dataset.value ? '' : button.dataset.value;
+        saveRequestDraft(true);
+        Array.prototype.forEach.call(root.querySelectorAll('[data-action="req-status"]'), function (chip) {
+          const on = chip.dataset.value === requestForm.myStatus;
+          chip.classList.toggle('is-active', on);
+          chip.setAttribute('aria-checked', on);
+        });
+        return;
+      }
+      if (action === 'yt-search') {
+        if (button.getAttribute('aria-disabled') === 'true') { event.preventDefault(); return; }
+        // Ссылку открывает сам браузер (это обычная ссылка), поэтому на телефоне откроется приложение YouTube.
+        requestForm.hasVideo = true;
+        saveRequestDraft(true);
+        setTimeout(function () { if (state.view === 'request') { render(); } }, 0);
+        return;
+      }
+      if (action === 'paste-url') {
+        const input = document.getElementById('reqUrl');
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+          showToast('Вставь ссылку долгим нажатием на поле');
+          if (input) input.focus();
+          return;
+        }
+        navigator.clipboard.readText().then(function (text) {
+          const value = String(text || '').trim();
+          if (!value) { showToast('В буфере обмена пусто'); return; }
+          requestForm.url = value;
+          if (input) input.value = value;
+          requestForm.touched = true;
+          saveRequestDraft(true);
+          updateRequestErrors();
+        }).catch(function () {
+          showToast('Нет доступа к буферу, вставь ссылку долгим нажатием');
+          if (input) input.focus();
+        });
+        return;
+      }
       if (action === 'req-video') {
         requestForm.hasVideo = button.dataset.value === 'yes';
+        saveRequestDraft(true);
         render();
         const url = document.getElementById('reqUrl');
         if (url) url.focus();
@@ -1636,6 +1745,7 @@
       } else if (id === 'reqArtist' || id === 'reqTitle' || id === 'reqUrl') {
         const key = { reqArtist: 'artist', reqTitle: 'title', reqUrl: 'url' }[id];
         requestForm[key] = event.target.value;
+        saveRequestDraft(true);
         updateRequestErrors();
       }
     });
@@ -1677,6 +1787,7 @@
     setInterval(tickToday, 60000);
 
     loadAuth();
+    loadRequestDraft();
     loadCache();
     render();
     loadCatalog();
